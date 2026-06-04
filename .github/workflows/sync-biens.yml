@@ -1,0 +1,46 @@
+name: 🔄 Sync biens 3G IMMO
+
+on:
+  schedule:
+    # Toutes les 4 heures (00h, 04h, 08h, 12h, 16h, 20h UTC)
+    - cron: '0 */4 * * *'
+  workflow_dispatch: {}  # Permet de déclencher manuellement depuis l'onglet Actions
+
+permissions:
+  contents: write  # Pour pouvoir commit/push data/biens.json
+
+concurrency:
+  group: sync-biens
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch biens depuis l'API 3G IMMO
+        env:
+          API_TOKEN: ${{ secrets.API_TOKEN_3GIMMO }}
+        run: node scripts/fetch-biens.js
+
+      - name: Commit & push si changement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/biens.json
+          if git diff --cached --quiet; then
+            echo "ℹ️  Aucun changement détecté"
+          else
+            COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/biens.json')).count)")
+            git commit -m "🔄 Sync biens 3G IMMO — ${COUNT} biens ($(date -u '+%Y-%m-%d %H:%M UTC'))"
+            git push
+            echo "✅ Mise à jour committée"
+          fi

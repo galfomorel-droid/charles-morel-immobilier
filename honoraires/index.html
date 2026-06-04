@@ -5345,6 +5345,31 @@ function init() {
 
   // Animations
   observeReveals();
+
+  // ===== Sync biens depuis l'API 3G IMMO =====
+  // data/biens.json est généré par GitHub Actions (workflow sync-biens.yml) toutes les 4 h
+  syncBiensFromAPI();
+}
+
+async function syncBiensFromAPI() {
+  try {
+    const res = await fetch('/data/biens.json', { cache: 'no-cache' });
+    if (!res.ok) return; // Fichier pas encore généré (pas grave)
+    const data = await res.json();
+    if (!data || !Array.isArray(data.properties) || data.properties.length === 0) return;
+
+    STATE.properties = data.properties;
+    saveProperties(STATE.properties);
+
+    renderHome();
+    renderListing();
+    injectPropertiesSchema();
+    if (typeof renderAdmin === 'function' && isAdminLogged()) renderAdmin();
+
+    console.log('✅ ' + data.properties.length + ' biens synchronisés depuis 3G IMMO (' + data.fetched_at + ')');
+  } catch (e) {
+    console.warn('⚠️ Sync 3G IMMO indisponible, biens locaux conservés.', e);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
