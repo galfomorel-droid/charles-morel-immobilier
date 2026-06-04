@@ -1,5 +1,5 @@
 # robots.txt — Charles MOREL Immobilier
-# https://charles-morel-immobilier.fr/
+# https://immobiliersabolien.fr/
 
 User-agent: *
 Allow: /
@@ -18,4 +18,4 @@ Disallow: /
 User-agent: CCBot
 Disallow: /
 
-Sitemap: https://charles-morel-immobilier.fr/sitemap.xml
+Sitemap: https://immobiliersabolien.fr/sitemap.xml
