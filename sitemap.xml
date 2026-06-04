@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/0.9">
+
+  <url>
+    <loc>https://charles-morel-immobilier.fr/</loc>
+    <lastmod>2026-05-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://charles-morel-immobilier.fr/og-image.jpg</image:loc>
+      <image:title>Charles MOREL — Mandataire Immobilier Sarthe &amp; Mayenne</image:title>
+    </image:image>
+  </url>
+
+  <url><loc>https://charles-morel-immobilier.fr/biens/</loc><lastmod>2026-05-07</lastmod><changefreq>weekly</changefreq><priority>0.95</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/secteurs/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/secteurs/sable-sur-sarthe/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/secteurs/solesmes/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/secteurs/la-fleche/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/honoraires/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/estimation/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/contact/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <url><loc>https://charles-morel-immobilier.fr/conseils/</loc><lastmod>2026-05-07</lastmod><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/conseils/estimer-maison-sable-sur-sarthe/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/conseils/vendre-vite-erreurs-eviter/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://charles-morel-immobilier.fr/conseils/diagnostics-immobiliers-2026/</loc><lastmod>2026-05-07</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <url><loc>https://charles-morel-immobilier.fr/mentions/</loc><lastmod>2026-05-07</lastmod><changefreq>yearly</changefreq><priority>0.3</priority></url>
+
+</urlset>

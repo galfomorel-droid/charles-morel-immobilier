@@ -1,0 +1,21 @@
+# robots.txt — Charles MOREL Immobilier
+# https://charles-morel-immobilier.fr/
+
+User-agent: *
+Allow: /
+Disallow: /admin
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://charles-morel-immobilier.fr/sitemap.xml
