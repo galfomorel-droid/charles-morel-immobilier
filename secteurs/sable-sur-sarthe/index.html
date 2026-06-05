@@ -4240,7 +4240,7 @@ function propertyCard(p) {
                   p.type === 'local' ? 'Local commercial' : 'Maison';
 
   return `
-    <article class="property-card reveal" data-type="${p.type}" data-exclu="${exclu}" data-price="${p.price}" data-surface="${p.surface}" data-id="${p.id}" onclick="navigate('#/bien/${p.id}')" itemscope itemtype="https://schema.org/Residence">
+    <article class="property-card reveal" data-type="${p.type}" data-exclu="${exclu}" data-price="${p.price}" data-surface="${p.surface}" data-id="${p.id}" onclick="navigate('/bien/${p.id}')" style="cursor:pointer;" itemscope itemtype="https://schema.org/Residence">
       <div class="property-image">
         <img src="${p.img}" alt="${escapeHtml(altParts)}" loading="lazy" itemprop="image" />
         ${p.badge ? `<span class="property-badge ${cls}">${escapeHtml(p.badge)}</span>` : ''}
@@ -4631,7 +4631,7 @@ function renderAdmin() {
         <div class="price">${fmtPrice(p.price)}</div>
         <div><span class="admin-status ${sCls}">${escapeHtml(sLbl)}</span></div>
         <div class="admin-actions">
-          <button data-tip="Voir le bien" onclick="navigate('#/bien/${p.id}')"><i class="ph ph-eye"></i></button>
+          <button data-tip="Voir le bien" onclick="navigate('/bien/${p.id}')"><i class="ph ph-eye"></i></button>
           <button data-tip="Modifier" onclick="openAdminModal(${p.id})"><i class="ph ph-pencil"></i></button>
           <button data-tip="${p.badge === 'Sous compromis' ? 'Retirer le compromis' : 'Marquer sous compromis'}" onclick="togglePropertyBadge(${p.id}, 'Sous compromis')"><i class="ph ph-handshake"></i></button>
           <button data-tip="${p.badge === 'Offre en cours' ? 'Retirer offre en cours' : 'Marquer offre en cours'}" onclick="togglePropertyBadge(${p.id}, 'Offre en cours')"><i class="ph ph-clipboard-text"></i></button>
