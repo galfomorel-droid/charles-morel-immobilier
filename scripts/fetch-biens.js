@@ -209,14 +209,50 @@ function extractTitle(desc, type, sous_type) {
   return title;
 }
 
-// Nettoie la description (retire les coordonnées de Charles à la fin)
+// Nettoie la description : retire uniquement les coordonnées de signature à la fin
+// (sans toucher au corps du texte qui mentionne Charles Morel au début ou au milieu)
 function cleanDesc(desc) {
   if (!desc) return '';
-  return desc
-    .replace(/Charles\s+Morel\s*[-–]\s*3G\s*IMMO[\s\S]*$/i, '')
-    .replace(/(?:📞|📧|✉|☎)[\s\S]*$/m, '')
-    .replace(/06\s*38\s*55\s*53\s*55[\s\S]*$/, '')
-    .trim();
+  let lines = desc.split('\n');
+
+  // Retire les lignes de pied de page (signature, contact) en partant de la fin
+  const FOOTER = [
+    /^\s*charles\s+morel\s*[-–]\s*3g\s*immo\s*$/i,
+    /^\s*[📞📧☎✉📱]\s*charles\s+morel/i,
+    /^\s*[📞📧☎✉📱]\s*06[\s.]*38[\s.]*55[\s.]*53[\s.]*55/i,
+    /^\s*[📞📧☎✉📱]\s*charles\.morel/i,
+    /^\s*06[\s.]*38[\s.]*55[\s.]*53[\s.]*55\s*$/i,
+    /^\s*charles\.morel@3gimmobilier\.com\s*$/i,
+    /^\s*contactez[- ]moi\s+pour\s+plus\s+d['']informations\s*[:.]?\s*$/i,
+    /^\s*pour\s+plus\s+d['']informations.*contactez/i,
+    /^\s*pour\s+toute\s+information.*contact/i,
+    /^\s*[📞📧☎✉📱]+\s*$/,
+    /^\s*$/,
+  ];
+
+  // Coupe à partir de la dernière "section signature" trouvée
+  let stop = lines.length;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (FOOTER.some(re => re.test(line))) {
+      stop = i;
+      continue;
+    }
+    // Si la ligne contient "Charles Morel – 3G IMMO" comme bloc isolé en fin
+    if (i >= lines.length - 5 && /charles\s+morel.*3g\s*immo/i.test(line) && line.length < 80) {
+      stop = i;
+      continue;
+    }
+    break;
+  }
+  lines = lines.slice(0, stop);
+
+  // Nettoyage final : retire lignes vides en queue
+  while (lines.length > 0 && /^\s*$/.test(lines[lines.length - 1])) {
+    lines.pop();
+  }
+
+  return lines.join('\n').trim();
 }
 
 /* ─────────── Main ─────────── */
