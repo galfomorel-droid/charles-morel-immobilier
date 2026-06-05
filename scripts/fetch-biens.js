@@ -19,47 +19,75 @@ const API_URL = `https://admin.3gimmobilier.fr/api/v1/site-perso/annonces?token=
 
 /* ─────────── Mappings 3G IMMO → site ─────────── */
 
-// Type de bien (clé API "type") → catégorie utilisée par le site
 const TYPE_MAP = {
-  '1': { key: 'maison', label: 'Maison' },
-  '2': { key: 'appartement', label: 'Appartement' },
-  '3': { key: 'terrain', label: 'Terrain' },
-  '4': { key: 'immeuble', label: 'Immeuble' },
-  '5': { key: 'local', label: 'Local' },
-  '6': { key: 'maison', label: 'Maison de village' },
-  '7': { key: 'maison', label: 'Longère' },
-  '8': { key: 'maison', label: 'Propriété' },
-  '9': { key: 'maison', label: 'Château' },
+  '1': 'maison',
+  '2': 'appartement',
+  '3': 'immeuble',
+  '4': 'local',
+  '5': 'terrain',
+  '6': 'maison',
 };
 
-// Sous-type → libellé éditorial pour le title (si présent)
-const SOUS_TYPE_LABELS = {
-  // À étoffer au fur et à mesure des biens rencontrés
-};
+/* Helper : construit une regex case-insensitive avec bornes de mots
+   compatibles avec les caractères accentués (le \b natif JS ne fonctionne pas
+   avec les caractères non-ASCII). */
+const LETTER = "[a-zA-ZéèêëàâäôöûüîïçÉÈÊËÀÂÄÔÖÛÜÎÏÇ]";
+function rx(pattern) {
+  return new RegExp(`(?<!${LETTER})(?:${pattern})(?!${LETTER})`, 'i');
+}
+
+// Communes connues (Sarthe + Mayenne + Maine-et-Loire)
+const COMMUNES = [
+  // Sarthe (72)
+  { name: 'Sablé-sur-Sarthe', cp: '72300', re: rx('sabl[ée][\\s-]+sur[\\s-]+sarthe|sabl[ée]') },
+  { name: 'Solesmes', cp: '72300', re: rx('solesmes') },
+  { name: 'Précigné', cp: '72300', re: rx('pr[ée]cign[ée]') },
+  { name: 'Juigné-sur-Sarthe', cp: '72300', re: rx('juign[ée][\\s-]+sur[\\s-]+sarthe') },
+  { name: 'Auvers-le-Hamon', cp: '72300', re: rx('auvers[\\s-]+le[\\s-]+hamon') },
+  { name: 'Notre-Dame-du-Pé', cp: '72300', re: rx('notre[\\s-]+dame[\\s-]+du[\\s-]+p[ée]') },
+  { name: 'Pincé', cp: '72300', re: rx('pinc[ée]') },
+  { name: 'Vion', cp: '72300', re: rx('vion') },
+  { name: 'Souvigné-sur-Sarthe', cp: '72300', re: rx('souvign[ée][\\s-]+sur[\\s-]+sarthe') },
+  { name: 'Le Bailleul', cp: '72200', re: rx('le[\\s-]+bailleul') },
+  { name: 'Parcé-sur-Sarthe', cp: '72300', re: rx('parc[ée][\\s-]+sur[\\s-]+sarthe') },
+  { name: 'Asnières-sur-Vègre', cp: '72430', re: rx('asni[èe]res[\\s-]+sur[\\s-]+v[èe]gre') },
+  { name: 'Avoise', cp: '72430', re: rx('avoise') },
+  { name: 'Courcelles-la-Forêt', cp: '72270', re: rx('courcelles[\\s-]+la[\\s-]+for[ée]t') },
+  { name: 'Poillé-sur-Vègre', cp: '72350', re: rx('poill[ée][\\s-]+sur[\\s-]+v[èe]gre') },
+  { name: 'Chevillé', cp: '72350', re: rx('chevill[ée]') },
+  { name: 'Brûlon', cp: '72350', re: rx('br[ûu]lon') },
+  { name: 'Dureil', cp: '72270', re: rx('dureil') },
+  { name: 'La Flèche', cp: '72200', re: rx('la[\\s-]+fl[èe]che') },
+  { name: 'Le Mans', cp: '72000', re: rx('le[\\s-]+mans') },
+  { name: "Saint-Denis-d'Orques", cp: '72350', re: rx("saint[\\s-]+denis[\\s'-]+d[\\s'-]+orques") },
+  { name: 'Avessé', cp: '72350', re: rx('aves[s]?[ée]') },
+  { name: 'Noyen-sur-Sarthe', cp: '72430', re: rx('noyen[\\s-]+sur[\\s-]+sarthe') },
+  { name: 'Malicorne-sur-Sarthe', cp: '72270', re: rx('malicorne[\\s-]+sur[\\s-]+sarthe') },
+  { name: 'Mont-Saint-Jean', cp: '72650', re: rx('mont[\\s-]+saint[\\s-]+jean') },
+  // Mayenne (53)
+  { name: 'Bouessay', cp: '53290', re: rx('bouessay') },
+  { name: 'Bouère', cp: '53290', re: rx('bou[èe]re') },
+  { name: 'Bierné-les-Villages', cp: '53290', re: rx('biern[ée]') },
+  { name: 'Saint-Brice', cp: '53290', re: rx('saint[\\s-]+brice') },
+  { name: 'Préaux', cp: '53290', re: rx('pr[ée]aux') },
+  { name: 'Saint-Loup-du-Dorat', cp: '53290', re: rx('saint[\\s-]+loup[\\s-]+du[\\s-]+dorat') },
+  { name: "Saint-Denis-d'Anjou", cp: '53290', re: rx("saint[\\s-]+denis[\\s'-]+d[\\s'-]+anjou") },
+  { name: 'Ballée', cp: '53340', re: rx('ball[ée]e') },
+  { name: 'Val-du-Maine', cp: '53340', re: rx('val[\\s-]+du[\\s-]+maine') },
+  { name: 'Château-Gontier-sur-Mayenne', cp: '53200', re: rx('ch[âa]teau[\\s-]+gontier') },
+  { name: 'Mayenne', cp: '53100', re: rx('mayenne') },
+  // Maine-et-Loire (49)
+  { name: 'Morannes-sur-Sarthe-Daumeray', cp: '49640', re: rx('morannes') },
+  { name: 'Daumeray', cp: '49640', re: rx('daumeray') },
+  { name: 'Miré', cp: '49330', re: rx('mir[ée]') },
+];
 
 /* ─────────── Helpers ─────────── */
 
-function mapType(apiType, sousType) {
-  const t = TYPE_MAP[String(apiType)] || { key: 'maison', label: 'Bien' };
-  return t.key;
-}
-
-function buildTitle(annonce) {
-  // Préfère sous_type s'il existe, sinon type principal
-  const sous = SOUS_TYPE_LABELS[String(annonce.sous_type)];
-  if (sous) return sous;
-  const t = TYPE_MAP[String(annonce.type)];
-  if (t) return t.label;
-  return 'Bien immobilier';
-}
-
-function buildCity(annonce) {
-  const ville = (annonce.ville_diffusion || annonce.ville_bien || '').trim();
-  // Chercher un code postal si présent
-  const cp = annonce.code_postal_diffusion || annonce.code_postal_bien || annonce.cp || '';
-  if (!ville) return '';
-  if (cp) return `${ville} (${cp})`;
-  return ville;
+function toInt(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = parseInt(String(v).replace(/[^\d.-]/g, ''), 10);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function gallery(annonce) {
@@ -73,71 +101,172 @@ function gallery(annonce) {
   return photos;
 }
 
-function deriveBadge(annonce) {
-  // 3G IMMO n'a pas de "badge" explicite. On regarde quelques indicateurs.
-  if (annonce.vente_interactive === 1 || annonce.vente_interactive === '1') return 'Vente interactive';
-  // etat_pre_archivage peut signaler compromis/offre, à affiner si besoin
-  if (annonce.etat_pre_archivage === 2) return 'Sous compromis';
-  if (annonce.etat_pre_archivage === 3) return 'Offre en cours';
+// Extrait ville + code postal depuis la description
+// Stratégie : trouver TOUS les matches puis garder celui qui apparaît en premier
+// dans le texte, en excluant les mentions "à X minutes de", "proche de", etc.
+function extractCity(desc) {
+  if (!desc) return '';
+
+  // Patterns qui indiquent un POI (proximité), pas la localisation du bien
+  const PROXIMITY_PATTERNS = [
+    /\b(?:à|a)\s+\d+\s*(?:min|minutes?|km|kilom[èe]tres?)\s+(?:de|du)\s+(?:la\s+(?:gare|ville|sortie|commune))?\s*$/i,
+    /\b(?:proche|près|pr[èe]s)\s+(?:de|du|des)\s*$/i,
+    /\b(?:gare|gare\s+tgv)\s+(?:de\s+)?$/i,
+    /\bautoroute\s+[^\s]*\s*$/i,
+    /\bsortie\s+(?:de\s+)?$/i,
+  ];
+
+  // Trouver toutes les occurrences avec leur position
+  const matches = [];
+  for (const c of COMMUNES) {
+    let m;
+    // Convertir la regex en globale pour trouver toutes les occurrences
+    const globalRe = new RegExp(c.re.source, 'gi');
+    while ((m = globalRe.exec(desc)) !== null) {
+      // Vérifier le contexte avant le match (50 caractères)
+      const before = desc.slice(Math.max(0, m.index - 50), m.index);
+      const isProximity = PROXIMITY_PATTERNS.some(p => p.test(before));
+      matches.push({ commune: c, pos: m.index, isProximity });
+    }
+  }
+
+  if (matches.length === 0) return '';
+
+  // Priorité 1 : non-proximité, position la plus tôt
+  const nonProximity = matches.filter(m => !m.isProximity).sort((a, b) => a.pos - b.pos);
+  if (nonProximity.length > 0) {
+    return `${nonProximity[0].commune.name} (${nonProximity[0].commune.cp})`;
+  }
+  // Fallback : première occurrence quel que soit le contexte
+  matches.sort((a, b) => a.pos - b.pos);
+  return `${matches[0].commune.name} (${matches[0].commune.cp})`;
+}
+
+// Détecte un badge depuis la description
+function detectBadge(desc, etat_pre_archivage) {
+  if (!desc) desc = '';
+  const lower = desc.toLowerCase();
+  if (Number(etat_pre_archivage) === 2 || /sous\s+compromis/.test(lower)) return 'Sous compromis';
+  if (Number(etat_pre_archivage) === 3 || /offre\s+en\s+cours/.test(lower)) return 'Offre en cours';
+  if (/baisse\s+de\s+prix/.test(lower)) return 'Baisse de prix';
+  if (/(en\s+)?exclusivit[ée]/.test(lower)) return 'Exclusivité';
   return null;
 }
 
-function toInt(v) {
-  if (v === null || v === undefined || v === '') return 0;
-  const n = parseInt(String(v).replace(/[^\d.-]/g, ''), 10);
-  return Number.isFinite(n) ? n : 0;
+// Libellé éditorial par sous_type (3G IMMO)
+const SOUS_TYPE_LABEL = {
+  '5': 'Maison ancienne',
+  '18': 'Maison de ville',
+  '25': 'Maison de bourg',
+  '47': 'Terrain',
+  '61': 'Maison de plain-pied',
+  '64': 'Maison familiale',
+  '71': 'Longère',
+};
+
+// Extrait un titre court à partir de la description.
+function extractTitle(desc, type, sous_type) {
+  const fromSousType = SOUS_TYPE_LABEL[String(sous_type)];
+  const fallback = type === 'terrain' ? 'Terrain'
+                 : fromSousType || 'Maison';
+
+  if (!desc) return fallback;
+
+  const lines = desc.split('\n').map(s => s.trim()).filter(Boolean);
+
+  // Lignes à ignorer (boilerplate, section, bullets, propriétés isolées)
+  const SKIP = /^(charles\s+morel|📞|📧|☎|✉|coup\s+de\s+c[œo]ur|caract[ée]ristiques|informations\s+compl|au\s+(?:rez|premier|deuxi|sous-sol|étage)|à\s+l['']int[ée]rieur|à\s+l['']ext[ée]rieur|confort\s*:|extérieur|intérieur|prix\s*:|dpe\s|honoraires|les?\s+plus|atouts|[-*•·]\s|une\s+entr[ée]e|surface\s+habitable|nombre\s+de\s+pi[èe]ces|chauffage\s*:|nombre\s+de\s+chambres|menuiseries\s*:|ventilation\s*:|ballon\s+d|cuisine\s+|s[ée]jour|salon|toiture\s*:|fa[çc]ade\s*:|isolation\s*:|au\s+sol|ann[ée]e\s+de|huisseries\s*:|assainissement\s*:|exposition\s*:|orientation\s*:|terrain\s*:|jardin\s*:|.*\s*:\s*$)/i;
+
+  // Trouver la première ligne avec un titre potentiel
+  let chosen = '';
+  for (const l of lines) {
+    if (SKIP.test(l)) continue;
+    if (l.length < 4) continue;
+    chosen = l;
+    break;
+  }
+  if (!chosen) return fallback;
+
+  // Coupe sur tirets cadratins, virgules avec espaces, parenthèses
+  let title = chosen.split(/[–—]|(?:\s+-\s+)|(?:\s+\()/)[0].trim();
+
+  // Retire les ", X m²" (mais garde X pièces qui est informatif)
+  title = title.replace(/\s*[,]\s*[Ee]nviron\s+\d+[\d,. ]*\s*m².*$/i, '').trim();
+  title = title.replace(/\s+\d+[\d,. ]*\s*m²\s*.*$/i, '').trim();
+
+  // Si MAJUSCULES → Capitaliser
+  if (title === title.toUpperCase() && title.length > 4) {
+    title = title.charAt(0).toUpperCase() + title.slice(1).toLowerCase();
+  }
+
+  // Nettoie mots vides en fin de titre (de, du, à, en, dans, sur, pour, le, la, les)
+  title = title.replace(/\s+(de|du|à|en|dans|sur|pour|le|la|les|un|une|des|au)\s*$/i, '').trim();
+
+  // Limite la longueur
+  if (title.length > 45) title = title.slice(0, 42) + '...';
+
+  if (!title || title.length < 4) return fallback;
+  return title;
+}
+
+// Nettoie la description (retire les coordonnées de Charles à la fin)
+function cleanDesc(desc) {
+  if (!desc) return '';
+  return desc
+    .replace(/Charles\s+Morel\s*[-–]\s*3G\s*IMMO[\s\S]*$/i, '')
+    .replace(/(?:📞|📧|✉|☎)[\s\S]*$/m, '')
+    .replace(/06\s*38\s*55\s*53\s*55[\s\S]*$/, '')
+    .trim();
 }
 
 /* ─────────── Main ─────────── */
 
 async function main() {
-  console.log('📡 Appel de l\'API 3G IMMO...');
-  const res = await fetch(API_URL, {
-    headers: { 'Accept': 'application/json' },
-  });
+  console.log('📡 Appel API 3G IMMO...');
+  const res = await fetch(API_URL, { headers: { 'Accept': 'application/json' } });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
-    console.error(`❌ Erreur API ${res.status} ${res.statusText}: ${txt.slice(0, 500)}`);
+    console.error(`❌ Erreur API ${res.status}: ${txt.slice(0, 300)}`);
     process.exit(1);
   }
   const data = await res.json();
   if (!data.success) {
-    console.error('❌ API a renvoyé success=false:', JSON.stringify(data).slice(0, 500));
+    console.error('❌ API success=false:', JSON.stringify(data).slice(0, 300));
     process.exit(1);
   }
-  console.log(`✅ ${data.count} annonces récupérées (user_id=${data.user_id})`);
+  console.log(`✅ ${data.count} annonces reçues (user_id=${data.user_id})`);
 
-  // Filtrer les annonces actives (e=1) au cas où l'API en renvoie d'autres
   const actives = (data.annonces || []).filter(a => Number(a.e) === 1 || a.e === undefined);
 
   const properties = actives.map(a => {
+    const desc = a.description_annonce || '';
+    const typeKey = TYPE_MAP[String(a.type)] || 'maison';
     const photos = gallery(a);
+    const cleaned = cleanDesc(desc);
     return {
       id: toInt(a.i),
-      type: mapType(a.type, a.sous_type),
-      title: buildTitle(a),
-      city: buildCity(a),
+      type: typeKey,
+      title: extractTitle(desc, typeKey, a.sous_type),
+      city: extractCity(desc),
       price: toInt(a.prix),
       rooms: toInt(a.nb_pieces),
       bedrooms: toInt(a.nb_chambres),
       surface: toInt(a.surface_bien || a.surface_local || a.surface_utile),
       land: toInt(a.surface_terrain),
-      badge: deriveBadge(a),
+      badge: detectBadge(desc, a.etat_pre_archivage),
       img: photos[0] || '',
       gallery: photos.slice(1, 10),
-      desc: (a.description_annonce || '').trim(),
+      desc: cleaned,
       ref: a.num_mandat || '',
-      dpe: a.dpe_note_energie || '',
       year: toInt(a.annee_construction) || null,
-      energy: a.type_chauffage_principal || '',
     };
   });
 
-  // Tri : exclusivités en premier puis prix décroissant
+  // Tri : Exclusivité > Offre/Compromis > autres ; prix décroissant
   properties.sort((a, b) => {
-    const pa = a.badge === 'Exclusivité' ? 0 : 1;
-    const pb = b.badge === 'Exclusivité' ? 0 : 1;
-    if (pa !== pb) return pa - pb;
+    const rank = b => b.badge === 'Exclusivité' ? 0 : (b.badge ? 1 : 2);
+    const r = rank(a) - rank(b);
+    if (r !== 0) return r;
     return (b.price || 0) - (a.price || 0);
   });
 
@@ -152,6 +281,13 @@ async function main() {
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(payload, null, 2));
   console.log(`✅ ${properties.length} biens écrits dans data/biens.json`);
+
+  // Récap pour debug
+  const noCity = properties.filter(p => !p.city);
+  if (noCity.length > 0) {
+    console.warn(`⚠️  ${noCity.length} biens sans ville détectée :`);
+    noCity.forEach(p => console.warn(`   - id=${p.id} ref=${p.ref} → "${p.title}"`));
+  }
 }
 
 main().catch(err => {
