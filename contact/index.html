@@ -4023,7 +4023,15 @@ function navigate(target) {
 
 function router() {
   const pathRaw = location.pathname.replace(/\/+$/, '') || '/';
-  let hash = PATH_TO_HASH[pathRaw] || location.hash || '#/';
+  // Détail d'un bien : on prend la fiche depuis le hash OU depuis le path
+  let hash;
+  if (location.hash && location.hash.startsWith('#/bien/')) {
+    hash = location.hash;
+  } else if (pathRaw.startsWith('/bien/')) {
+    hash = '#/bien/' + pathRaw.split('/')[2];
+  } else {
+    hash = PATH_TO_HASH[pathRaw] || location.hash || '#/';
+  }
 
   // Anchor sur la home (ex: #/#contact)
   let anchor = null;
