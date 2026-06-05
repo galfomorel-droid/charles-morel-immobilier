@@ -4377,19 +4377,33 @@ function renderDetail(id) {
           </div>
         </div>
 
-        ${(p.surface || p.rooms || p.pieces || p.salleBain || p.salleEau || p.niveaux || p.annee || p.land) ? `
+        ${(p.surface || p.rooms || p.bedrooms || p.bathrooms || p.year || p.land || p.etat || p.heating || p.taxeFonciere || p.garages || p.exposition || p.huisseries) ? `
         <div class="detail-section">
           <h2>Caractéristiques détaillées</h2>
           <div class="detail-info-grid">
-            <div class="detail-info-row"><span class="key">Type de bien</span><span class="value">${typeLbl}</span></div>
-            ${p.surface  ? `<div class="detail-info-row"><span class="key">Surface habitable</span><span class="value">${p.surface} m²</span></div>` : ''}
-            ${p.land     ? `<div class="detail-info-row"><span class="key">Surface terrain</span><span class="value">${p.land} m²</span></div>` : ''}
-            ${p.pieces   ? `<div class="detail-info-row"><span class="key">Pièces</span><span class="value">${p.pieces}</span></div>` : ''}
-            ${p.rooms    ? `<div class="detail-info-row"><span class="key">Chambres</span><span class="value">${p.rooms}</span></div>` : ''}
-            ${p.salleBain? `<div class="detail-info-row"><span class="key">Salles de bain</span><span class="value">${p.salleBain}</span></div>` : ''}
-            ${p.salleEau ? `<div class="detail-info-row"><span class="key">Salles d'eau</span><span class="value">${p.salleEau}</span></div>` : ''}
-            ${p.niveaux  ? `<div class="detail-info-row"><span class="key">Niveaux</span><span class="value">${p.niveaux}</span></div>` : ''}
-            ${p.annee    ? `<div class="detail-info-row"><span class="key">Année construction</span><span class="value">${p.annee}</span></div>` : ''}
+            <div class="detail-info-row"><span class="key">Type de bien</span><span class="value">${escapeHtml(p.sousType || typeLbl)}</span></div>
+            ${p.surface ? `<div class="detail-info-row"><span class="key">Surface habitable</span><span class="value">${p.surface} m²</span></div>` : ''}
+            ${p.surfaceUtile && p.surfaceUtile !== p.surface ? `<div class="detail-info-row"><span class="key">Surface utile</span><span class="value">${p.surfaceUtile} m²</span></div>` : ''}
+            ${p.land ? `<div class="detail-info-row"><span class="key">Surface terrain</span><span class="value">${p.land.toLocaleString('fr-FR')} m²</span></div>` : ''}
+            ${p.typeTerrain ? `<div class="detail-info-row"><span class="key">Type de terrain</span><span class="value">${escapeHtml(p.typeTerrain)}</span></div>` : ''}
+            ${p.inclinaisonTerrain ? `<div class="detail-info-row"><span class="key">Inclinaison terrain</span><span class="value">${escapeHtml(p.inclinaisonTerrain)}</span></div>` : ''}
+            ${p.rooms ? `<div class="detail-info-row"><span class="key">Nombre de pièces</span><span class="value">${p.rooms}</span></div>` : ''}
+            ${p.bedrooms ? `<div class="detail-info-row"><span class="key">Chambres</span><span class="value">${p.bedrooms}</span></div>` : ''}
+            ${p.bathrooms ? `<div class="detail-info-row"><span class="key">Salles de bain</span><span class="value">${p.bathrooms}</span></div>` : ''}
+            ${p.showerRooms ? `<div class="detail-info-row"><span class="key">Salles d'eau</span><span class="value">${p.showerRooms}</span></div>` : ''}
+            ${p.wc ? `<div class="detail-info-row"><span class="key">WC</span><span class="value">${p.wc}${p.wcSepare ? ' (dont ' + p.wcSepare + ' séparé' + (p.wcSepare > 1 ? 's' : '') + ')' : ''}</span></div>` : ''}
+            ${p.garages ? `<div class="detail-info-row"><span class="key">Garages</span><span class="value">${p.garages}</span></div>` : ''}
+            ${p.parkings ? `<div class="detail-info-row"><span class="key">Parkings couverts</span><span class="value">${p.parkings}</span></div>` : ''}
+            ${p.balcons ? `<div class="detail-info-row"><span class="key">Balcons</span><span class="value">${p.balcons}</span></div>` : ''}
+            ${p.year ? `<div class="detail-info-row"><span class="key">Année construction</span><span class="value">${p.year}</span></div>` : ''}
+            ${p.etat ? `<div class="detail-info-row"><span class="key">État</span><span class="value">${escapeHtml(p.etat)}</span></div>` : ''}
+            ${p.huisseries ? `<div class="detail-info-row"><span class="key">Huisseries</span><span class="value">${escapeHtml(p.huisseries)}</span></div>` : ''}
+            ${p.exposition ? `<div class="detail-info-row"><span class="key">Exposition</span><span class="value">${escapeHtml(p.exposition)}</span></div>` : ''}
+            ${p.heating ? `<div class="detail-info-row"><span class="key">Chauffage principal</span><span class="value">${escapeHtml(p.heating)}</span></div>` : ''}
+            ${p.heatingSecondary ? `<div class="detail-info-row"><span class="key">Chauffage secondaire</span><span class="value">${escapeHtml(p.heatingSecondary)}</span></div>` : ''}
+            ${p.taxeFonciere ? `<div class="detail-info-row"><span class="key">Taxe foncière</span><span class="value">${p.taxeFonciere.toLocaleString('fr-FR')} € / an</span></div>` : ''}
+            ${p.honoraires ? `<div class="detail-info-row"><span class="key">Honoraires à charge</span><span class="value">${escapeHtml(p.honoraires)}</span></div>` : ''}
+            ${p.ref ? `<div class="detail-info-row"><span class="key">Réf. mandat</span><span class="value">${escapeHtml(p.ref)}</span></div>` : ''}
           </div>
         </div>` : ''}
 

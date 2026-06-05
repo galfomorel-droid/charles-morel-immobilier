@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /* ============================================================================
    📡 fetch-biens.js
-   Récupère les annonces depuis l'API 3G IMMO (admin.3gimmobilier.fr)
-   et les transforme au format attendu par le site.
+   Récupère TOUTES les infos des annonces depuis l'API 3G IMMO
+   + DPE/GES depuis la page publique 3gimmo.com (non exposés par l'API).
    Génère : data/biens.json
    ============================================================================ */
 
@@ -16,29 +16,65 @@ if (!TOKEN) {
 }
 
 const API_URL = `https://admin.3gimmobilier.fr/api/v1/site-perso/annonces?token=${TOKEN}`;
+const PUBLIC_URL = (i, agent) => `https://3gimmo.com/annonce/${i}?agent=${agent}`;
 
-/* ─────────── Mappings 3G IMMO → site ─────────── */
+/* ─────────── Mappings 3G IMMO → libellés humains ─────────── */
 
 const TYPE_MAP = {
-  '1': 'maison',
-  '2': 'appartement',
-  '3': 'immeuble',
-  '4': 'local',
-  '5': 'terrain',
-  '6': 'maison',
+  '1': 'maison', '2': 'appartement', '3': 'immeuble',
+  '4': 'local', '5': 'terrain', '6': 'maison',
 };
 
-/* Helper : construit une regex case-insensitive avec bornes de mots
-   compatibles avec les caractères accentués (le \b natif JS ne fonctionne pas
-   avec les caractères non-ASCII). */
-const LETTER = "[a-zA-ZéèêëàâäôöûüîïçÉÈÊËÀÂÄÔÖÛÜÎÏÇ]";
-function rx(pattern) {
-  return new RegExp(`(?<!${LETTER})(?:${pattern})(?!${LETTER})`, 'i');
-}
+const SOUS_TYPE_LABEL = {
+  '5': 'Maison ancienne', '18': 'Maison de ville', '25': 'Maison de bourg',
+  '47': 'Terrain', '61': 'Maison de plain-pied', '64': 'Maison familiale',
+  '71': 'Longère',
+};
 
-// Communes connues (Sarthe + Mayenne + Maine-et-Loire)
+const ETAT_LABEL = {
+  '1': 'Sans travaux', '2': 'Avec travaux', '3': 'À rafraîchir',
+  '4': 'À rénover', '5': 'Refait à neuf', '6': 'Neuf',
+  '7': 'En état futur d\'achèvement',
+};
+
+const CHAUFFAGE_LABEL = {
+  '1': 'Sans', '2': 'Bois', '3': 'Électrique', '4': 'Fuel',
+  '5': 'Gaz', '6': 'Granulés', '7': 'Climatisation réversible',
+  '8': 'Pompe à chaleur', '9': 'Solaire', '10': 'Collectif',
+  '11': 'Chauffage au sol',
+};
+
+const HUISSERIES_LABEL = {
+  '1': 'Bois', '2': 'PVC', '3': 'Alu',
+  '4': 'Alu et Bois', '5': 'Alu et PVC',
+  '6': 'Bois et PVC', '7': 'Alu, Bois et PVC',
+};
+
+const EXPOSITION_LABEL = {
+  '1': 'Nord', '2': 'Sud', '3': 'Ouest', '4': 'Est',
+  '13': 'Nord-Ouest', '14': 'Nord-Est',
+  '23': 'Sud-Ouest', '24': 'Sud-Est',
+};
+
+const TYPE_TERRAIN_LABEL = {
+  '1': 'Aucun', '2': 'Courette', '3': 'Cour', '4': 'Jardin',
+  '5': 'Terrain', '6': 'Grand terrain', '7': 'Terrain constructible',
+};
+
+const INCLINAISON_LABEL = {
+  '1': 'Terrain plat', '2': 'Terrain en pente',
+};
+
+const HONORAIRES_LABEL = {
+  '1': 'Vendeur', '2': 'Acquéreur',
+};
+
+/* ─────────── Communes (bornes mot accent-safe) ─────────── */
+
+const LETTER = "[a-zA-ZéèêëàâäôöûüîïçÉÈÊËÀÂÄÔÖÛÜÎÏÇ]";
+const rx = (p) => new RegExp(`(?<!${LETTER})(?:${p})(?!${LETTER})`, 'i');
+
 const COMMUNES = [
-  // Sarthe (72)
   { name: 'Sablé-sur-Sarthe', cp: '72300', re: rx('sabl[ée][\\s-]+sur[\\s-]+sarthe|sabl[ée]') },
   { name: 'Solesmes', cp: '72300', re: rx('solesmes') },
   { name: 'Précigné', cp: '72300', re: rx('pr[ée]cign[ée]') },
@@ -64,7 +100,6 @@ const COMMUNES = [
   { name: 'Noyen-sur-Sarthe', cp: '72430', re: rx('noyen[\\s-]+sur[\\s-]+sarthe') },
   { name: 'Malicorne-sur-Sarthe', cp: '72270', re: rx('malicorne[\\s-]+sur[\\s-]+sarthe') },
   { name: 'Mont-Saint-Jean', cp: '72650', re: rx('mont[\\s-]+saint[\\s-]+jean') },
-  // Mayenne (53)
   { name: 'Bouessay', cp: '53290', re: rx('bouessay') },
   { name: 'Bouère', cp: '53290', re: rx('bou[èe]re') },
   { name: 'Bierné-les-Villages', cp: '53290', re: rx('biern[ée]') },
@@ -76,7 +111,6 @@ const COMMUNES = [
   { name: 'Val-du-Maine', cp: '53340', re: rx('val[\\s-]+du[\\s-]+maine') },
   { name: 'Château-Gontier-sur-Mayenne', cp: '53200', re: rx('ch[âa]teau[\\s-]+gontier') },
   { name: 'Mayenne', cp: '53100', re: rx('mayenne') },
-  // Maine-et-Loire (49)
   { name: 'Morannes-sur-Sarthe-Daumeray', cp: '49640', re: rx('morannes') },
   { name: 'Daumeray', cp: '49640', re: rx('daumeray') },
   { name: 'Miré', cp: '49330', re: rx('mir[ée]') },
@@ -90,59 +124,46 @@ function toInt(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function gallery(annonce) {
+function toFloat(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = parseFloat(String(v).replace(',', '.').replace(/[^\d.-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function gallery(a) {
   const photos = [];
   for (let i = 1; i <= 20; i++) {
-    const url = annonce[`photo${i}`];
-    if (url && typeof url === 'string' && url.trim()) {
-      photos.push(url.trim());
-    }
+    const url = a[`photo${i}`];
+    if (url && typeof url === 'string' && url.trim()) photos.push(url.trim());
   }
   return photos;
 }
 
-// Extrait ville + code postal depuis la description
-// Stratégie : trouver TOUS les matches puis garder celui qui apparaît en premier
-// dans le texte, en excluant les mentions "à X minutes de", "proche de", etc.
 function extractCity(desc) {
   if (!desc) return '';
-
-  // Patterns qui indiquent un POI (proximité), pas la localisation du bien
-  const PROXIMITY_PATTERNS = [
+  const PROXIMITY = [
     /\b(?:à|a)\s+\d+\s*(?:min|minutes?|km|kilom[èe]tres?)\s+(?:de|du)\s+(?:la\s+(?:gare|ville|sortie|commune))?\s*$/i,
     /\b(?:proche|près|pr[èe]s)\s+(?:de|du|des)\s*$/i,
     /\b(?:gare|gare\s+tgv)\s+(?:de\s+)?$/i,
     /\bautoroute\s+[^\s]*\s*$/i,
     /\bsortie\s+(?:de\s+)?$/i,
   ];
-
-  // Trouver toutes les occurrences avec leur position
   const matches = [];
   for (const c of COMMUNES) {
     let m;
-    // Convertir la regex en globale pour trouver toutes les occurrences
-    const globalRe = new RegExp(c.re.source, 'gi');
-    while ((m = globalRe.exec(desc)) !== null) {
-      // Vérifier le contexte avant le match (50 caractères)
+    const re = new RegExp(c.re.source, 'gi');
+    while ((m = re.exec(desc)) !== null) {
       const before = desc.slice(Math.max(0, m.index - 50), m.index);
-      const isProximity = PROXIMITY_PATTERNS.some(p => p.test(before));
-      matches.push({ commune: c, pos: m.index, isProximity });
+      const isProx = PROXIMITY.some(p => p.test(before));
+      matches.push({ commune: c, pos: m.index, isProx });
     }
   }
-
-  if (matches.length === 0) return '';
-
-  // Priorité 1 : non-proximité, position la plus tôt
-  const nonProximity = matches.filter(m => !m.isProximity).sort((a, b) => a.pos - b.pos);
-  if (nonProximity.length > 0) {
-    return `${nonProximity[0].commune.name} (${nonProximity[0].commune.cp})`;
-  }
-  // Fallback : première occurrence quel que soit le contexte
-  matches.sort((a, b) => a.pos - b.pos);
-  return `${matches[0].commune.name} (${matches[0].commune.cp})`;
+  if (!matches.length) return '';
+  const nonProx = matches.filter(m => !m.isProx).sort((a, b) => a.pos - b.pos);
+  const winner = nonProx[0] || matches.sort((a, b) => a.pos - b.pos)[0];
+  return `${winner.commune.name} (${winner.commune.cp})`;
 }
 
-// Détecte un badge depuis la description
 function detectBadge(desc, etat_pre_archivage) {
   if (!desc) desc = '';
   const lower = desc.toLowerCase();
@@ -153,31 +174,12 @@ function detectBadge(desc, etat_pre_archivage) {
   return null;
 }
 
-// Libellé éditorial par sous_type (3G IMMO)
-const SOUS_TYPE_LABEL = {
-  '5': 'Maison ancienne',
-  '18': 'Maison de ville',
-  '25': 'Maison de bourg',
-  '47': 'Terrain',
-  '61': 'Maison de plain-pied',
-  '64': 'Maison familiale',
-  '71': 'Longère',
-};
-
-// Extrait un titre court à partir de la description.
 function extractTitle(desc, type, sous_type) {
-  const fromSousType = SOUS_TYPE_LABEL[String(sous_type)];
-  const fallback = type === 'terrain' ? 'Terrain'
-                 : fromSousType || 'Maison';
-
+  const fallback = type === 'terrain' ? 'Terrain' :
+                   SOUS_TYPE_LABEL[String(sous_type)] || 'Maison';
   if (!desc) return fallback;
-
   const lines = desc.split('\n').map(s => s.trim()).filter(Boolean);
-
-  // Lignes à ignorer (boilerplate, section, bullets, propriétés isolées)
   const SKIP = /^(charles\s+morel|📞|📧|☎|✉|coup\s+de\s+c[œo]ur|caract[ée]ristiques|informations\s+compl|au\s+(?:rez|premier|deuxi|sous-sol|étage)|à\s+l['']int[ée]rieur|à\s+l['']ext[ée]rieur|confort\s*:|extérieur|intérieur|prix\s*:|dpe\s|honoraires|les?\s+plus|atouts|[-*•·]\s|une\s+entr[ée]e|surface\s+habitable|nombre\s+de\s+pi[èe]ces|chauffage\s*:|nombre\s+de\s+chambres|menuiseries\s*:|ventilation\s*:|ballon\s+d|cuisine\s+|s[ée]jour|salon|toiture\s*:|fa[çc]ade\s*:|isolation\s*:|au\s+sol|ann[ée]e\s+de|huisseries\s*:|assainissement\s*:|exposition\s*:|orientation\s*:|terrain\s*:|jardin\s*:|.*\s*:\s*$)/i;
-
-  // Trouver la première ligne avec un titre potentiel
   let chosen = '';
   for (const l of lines) {
     if (SKIP.test(l)) continue;
@@ -186,36 +188,21 @@ function extractTitle(desc, type, sous_type) {
     break;
   }
   if (!chosen) return fallback;
-
-  // Coupe sur tirets cadratins, virgules avec espaces, parenthèses
   let title = chosen.split(/[–—]|(?:\s+-\s+)|(?:\s+\()/)[0].trim();
-
-  // Retire les ", X m²" (mais garde X pièces qui est informatif)
   title = title.replace(/\s*[,]\s*[Ee]nviron\s+\d+[\d,. ]*\s*m².*$/i, '').trim();
   title = title.replace(/\s+\d+[\d,. ]*\s*m²\s*.*$/i, '').trim();
-
-  // Si MAJUSCULES → Capitaliser
   if (title === title.toUpperCase() && title.length > 4) {
     title = title.charAt(0).toUpperCase() + title.slice(1).toLowerCase();
   }
-
-  // Nettoie mots vides en fin de titre (de, du, à, en, dans, sur, pour, le, la, les)
   title = title.replace(/\s+(de|du|à|en|dans|sur|pour|le|la|les|un|une|des|au)\s*$/i, '').trim();
-
-  // Limite la longueur
   if (title.length > 45) title = title.slice(0, 42) + '...';
-
   if (!title || title.length < 4) return fallback;
   return title;
 }
 
-// Nettoie la description : retire uniquement les coordonnées de signature à la fin
-// (sans toucher au corps du texte qui mentionne Charles Morel au début ou au milieu)
 function cleanDesc(desc) {
   if (!desc) return '';
   let lines = desc.split('\n');
-
-  // Retire les lignes de pied de page (signature, contact) en partant de la fin
   const FOOTER = [
     /^\s*charles\s+morel\s*[-–]\s*3g\s*immo\s*$/i,
     /^\s*[📞📧☎✉📱]\s*charles\s+morel/i,
@@ -229,30 +216,37 @@ function cleanDesc(desc) {
     /^\s*[📞📧☎✉📱]+\s*$/,
     /^\s*$/,
   ];
-
-  // Coupe à partir de la dernière "section signature" trouvée
   let stop = lines.length;
   for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i];
-    if (FOOTER.some(re => re.test(line))) {
-      stop = i;
-      continue;
-    }
-    // Si la ligne contient "Charles Morel – 3G IMMO" comme bloc isolé en fin
-    if (i >= lines.length - 5 && /charles\s+morel.*3g\s*immo/i.test(line) && line.length < 80) {
-      stop = i;
-      continue;
+    if (FOOTER.some(re => re.test(lines[i]))) { stop = i; continue; }
+    if (i >= lines.length - 5 && /charles\s+morel.*3g\s*immo/i.test(lines[i]) && lines[i].length < 80) {
+      stop = i; continue;
     }
     break;
   }
   lines = lines.slice(0, stop);
-
-  // Nettoyage final : retire lignes vides en queue
-  while (lines.length > 0 && /^\s*$/.test(lines[lines.length - 1])) {
-    lines.pop();
-  }
-
+  while (lines.length > 0 && /^\s*$/.test(lines[lines.length - 1])) lines.pop();
   return lines.join('\n').trim();
+}
+
+/* ─────────── Scrape DPE/GES depuis la page publique 3gimmo.com ─────────── */
+async function scrapeDPE(id, agent) {
+  try {
+    const res = await fetch(PUBLIC_URL(id, agent), {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Charles-Morel-Sync/1.0)' },
+    });
+    if (!res.ok) return { dpe: '', ges: '' };
+    const html = await res.text();
+    // Cherche le bloc <div id="dpe_X" class="dpe_line ... DPEselected">
+    const dpeMatch = html.match(/id="dpe_([A-G])"\s+class="[^"]*DPEselected/i);
+    const gesMatch = html.match(/id="ges_([A-G])"\s+class="[^"]*GESselected/i);
+    return {
+      dpe: dpeMatch ? dpeMatch[1] : '',
+      ges: gesMatch ? gesMatch[1] : '',
+    };
+  } catch (e) {
+    return { dpe: '', ges: '' };
+  }
 }
 
 /* ─────────── Main ─────────── */
@@ -261,53 +255,101 @@ async function main() {
   console.log('📡 Appel API 3G IMMO...');
   const res = await fetch(API_URL, { headers: { 'Accept': 'application/json' } });
   if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    console.error(`❌ Erreur API ${res.status}: ${txt.slice(0, 300)}`);
+    console.error(`❌ Erreur API ${res.status}`);
     process.exit(1);
   }
   const data = await res.json();
-  if (!data.success) {
-    console.error('❌ API success=false:', JSON.stringify(data).slice(0, 300));
-    process.exit(1);
-  }
-  console.log(`✅ ${data.count} annonces reçues (user_id=${data.user_id})`);
+  if (!data.success) { console.error('❌ success=false'); process.exit(1); }
+  console.log(`✅ ${data.count} annonces (user_id=${data.user_id})`);
 
   const actives = (data.annonces || []).filter(a => Number(a.e) === 1 || a.e === undefined);
 
-  const properties = actives.map(a => {
+  // Récupérer DPE/GES en parallèle (limite 60 req/min → on est large à 17)
+  console.log('🔎 Récupération DPE/GES depuis les pages publiques...');
+  const dpeData = await Promise.all(
+    actives.map(a => scrapeDPE(a.i, data.user_id).catch(() => ({ dpe: '', ges: '' })))
+  );
+  const dpeOk = dpeData.filter(d => d.dpe).length;
+  console.log(`   → ${dpeOk}/${actives.length} DPE trouvés`);
+
+  const properties = actives.map((a, idx) => {
     const desc = a.description_annonce || '';
     const typeKey = TYPE_MAP[String(a.type)] || 'maison';
     const photos = gallery(a);
     const cleaned = cleanDesc(desc);
+    const { dpe, ges } = dpeData[idx];
+
     return {
+      // Identité
       id: toInt(a.i),
+      ref: a.num_mandat || '',
       type: typeKey,
+      sousType: SOUS_TYPE_LABEL[String(a.sous_type)] || null,
       title: extractTitle(desc, typeKey, a.sous_type),
       city: extractCity(desc),
+      badge: detectBadge(desc, a.etat_pre_archivage),
+
+      // Description + photos
+      desc: cleaned,
+      img: photos[0] || '',
+      gallery: photos.slice(1, 20),
+
+      // Prix & honoraires
       price: toInt(a.prix),
+      honoraires: HONORAIRES_LABEL[String(a.honoraire_a_charge)] || null,
+
+      // Surfaces
+      surface: toInt(a.surface_bien || a.surface_local || a.surface_utile),
+      surfaceUtile: toFloat(a.surface_utile),
+      land: toInt(a.surface_terrain),
+      typeTerrain: TYPE_TERRAIN_LABEL[String(a.type_terrain)] || null,
+      inclinaisonTerrain: INCLINAISON_LABEL[String(a.inclinaison_terrain)] || null,
+
+      // Pièces
       rooms: toInt(a.nb_pieces),
       bedrooms: toInt(a.nb_chambres),
-      surface: toInt(a.surface_bien || a.surface_local || a.surface_utile),
-      land: toInt(a.surface_terrain),
-      badge: detectBadge(desc, a.etat_pre_archivage),
-      img: photos[0] || '',
-      gallery: photos.slice(1, 10),
-      desc: cleaned,
-      ref: a.num_mandat || '',
+      bathrooms: toInt(a.nb_salle_bain),
+      showerRooms: toInt(a.nb_salle_eau),
+      wc: toInt(a.nb_wc),
+      wcSepare: toInt(a.nb_wc_separe),
+
+      // Parkings / garages
+      garages: toInt(a.nb_garages),
+      parkings: toInt(a.nb_parkings_interieur),
+      balcons: toInt(a.nb_balcons),
+
+      // Caractéristiques bâtiment
       year: toInt(a.annee_construction) || null,
+      etat: ETAT_LABEL[String(a.etat)] || null,
+      huisseries: HUISSERIES_LABEL[String(a.huisseries)] || null,
+      exposition: EXPOSITION_LABEL[String(a.exposition)] || null,
+
+      // Chauffage
+      heating: CHAUFFAGE_LABEL[String(a.type_chauffage_principal)] || null,
+      heatingSecondary: CHAUFFAGE_LABEL[String(a.type_chauffage_secondaire)] || null,
+
+      // Charges
+      taxeFonciere: toInt(a.taxe_fonciere),
+
+      // DPE / GES (scrapés)
+      dpe,
+      ges,
+
+      // Lien public 3G IMMO
+      publicUrl: PUBLIC_URL(a.i, data.user_id),
     };
   });
 
-  // Tri : Exclusivité > Offre/Compromis > autres ; prix décroissant
+  // Tri : Exclusivité > avec badge > sans ; prix décroissant
   properties.sort((a, b) => {
-    const rank = b => b.badge === 'Exclusivité' ? 0 : (b.badge ? 1 : 2);
+    const rank = x => x.badge === 'Exclusivité' ? 0 : (x.badge ? 1 : 2);
     const r = rank(a) - rank(b);
     if (r !== 0) return r;
     return (b.price || 0) - (a.price || 0);
   });
 
   const payload = {
-    source: '3G IMMO API v1',
+    source: '3G IMMO API v1 + DPE 3gimmo.com',
     fetched_at: new Date().toISOString(),
     count: properties.length,
     properties,
@@ -318,7 +360,6 @@ async function main() {
   fs.writeFileSync(outPath, JSON.stringify(payload, null, 2));
   console.log(`✅ ${properties.length} biens écrits dans data/biens.json`);
 
-  // Récap pour debug
   const noCity = properties.filter(p => !p.city);
   if (noCity.length > 0) {
     console.warn(`⚠️  ${noCity.length} biens sans ville détectée :`);
@@ -326,7 +367,4 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error('❌ Erreur:', err);
-  process.exit(1);
-});
+main().catch(err => { console.error('❌', err); process.exit(1); });
